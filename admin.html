@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Velour · Administração</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--wine:#2a0f1e;--wine-2:#3a1829;--champagne:#e9d5b8;--ivory:#faf3ea;--muted:#b9a3a8;--line:rgba(233,213,184,.16)}
+*{box-sizing:border-box;margin:0}
+body{background:var(--wine);color:var(--ivory);font:400 16px/1.5 Manrope,system-ui,sans-serif;min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 70px}
+h1{font:600 32px/1.1 "Cormorant Garamond",serif;color:var(--champagne)}
+h2{font:500 26px/1.1 "Cormorant Garamond",serif;margin:6px 0 14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+input,textarea,select{width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--line);background:var(--wine);color:var(--ivory);font:inherit;font-size:16px}
+label{display:block;font-size:13.5px;font-weight:600;margin:12px 0 6px}
+.btn{border:0;cursor:pointer;padding:10px 16px;border-radius:99px;font:600 14px Manrope;background:var(--champagne);color:var(--wine)}
+.btn.line{background:none;color:var(--champagne);border:1px solid var(--line)}
+.btn.bad{background:none;color:#ff9aa6;border:1px solid rgba(255,154,166,.4)}
+.btn:disabled{opacity:.5}
+.panel{background:var(--wine-2);border:1px solid var(--line);border-radius:20px;padding:24px;max-width:420px;margin:60px auto}
+.panel .btn{width:100%;margin-top:18px;padding:14px}
+.err{color:#ff9aa6;font-size:14px;margin-top:10px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:18px;padding-bottom:4px;scrollbar-width:none}
+.tab{flex:none;padding:9px 16px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--muted);font:600 14px Manrope;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--champagne);color:var(--wine);border-color:var(--champagne)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.stat{background:var(--wine-2);border:1px solid var(--line);border-radius:14px;padding:16px}
+.stat b{display:block;font:500 40px/1 "Cormorant Garamond",serif;color:var(--champagne)}
+.stat span{color:var(--muted);font-size:13.5px}
+.row{background:var(--wine-2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.row b{font:600 21px "Cormorant Garamond",serif}
+.row small{color:var(--muted);display:block;word-break:break-all}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.tag{font-size:12.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.tag.ok{color:#9be7b4;border-color:rgba(155,231,180,.4)}
+.tag.live{color:#ff8a98;border-color:rgba(255,138,152,.4)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.form{background:var(--wine-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+.hidden{display:none!important}
+.empty{color:var(--muted);padding:14px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="panel">
+    <h1>Administração</h1>
+    <form id="lf">
+      <label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Palavra-passe</label><input id="pw" type="password" autocomplete="current-password" required>
+      <p class="err" id="le" role="alert"></p>
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <div id="dash" class="hidden">
+    <div class="top"><h1>Velour · Admin</h1><button class="btn line" id="out">Sair</button></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-t="resumo" aria-selected="true">Resumo</button>
+      <button class="tab" role="tab" data-t="modelos" aria-selected="false">Modelos</button>
+      <button class="tab" role="tab" data-t="videos" aria-selected="false">Vídeos</button>
+      <button class="tab" role="tab" data-t="promos" aria-selected="false">Promoções</button>
+      <button class="tab" role="tab" data-t="users" aria-selected="false">Utilizadores</button>
+    </div>
+    <div id="view"></div>
+  </div>
+</div>
+
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+const sb=createClient("https://skzubutjewdtkpjamqtd.supabase.co",
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrenVidXRqZXdkdGtwamFtcXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MTIyMTgsImV4cCI6MjExMTA4ODIxOH0.kWVH8Uh2WPqtHu394VWAiTuEBk7wRjaTSz8Eu91UlEg");
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let tab="resumo";
+
+async function adminCheck(){
+  const {data:{user}}=await sb.auth.getUser(); if(!user)return {ok:false};
+  const {data,error}=await sb.from("profiles").select("role").eq("id",user.id).maybeSingle();
+  return {ok:data?.role==="admin",error,user};
+}
+async function show(){
+  const r=await adminCheck();
+  if(r.ok){$("#login").classList.add("hidden");$("#dash").classList.remove("hidden");render()}
+  else{$("#dash").classList.add("hidden");$("#login").classList.remove("hidden")}
+}
+const err=e=>`<p class="err">${esc(e.message)}</p>`;
+const rpc=async(fn,args)=>{const {error}=await sb.rpc(fn,args);if(error)alert(error.message);render()};
+
+async function render(){
+  const v=$("#view");v.innerHTML=`<p class="empty">A carregar…</p>`;
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.t===tab));
+  ({resumo,modelos,videos,promos,users})[tab](v);
+}
+
+async function resumo(v){
+  const c=async(t,f)=>{let q=sb.from(t).select("*",{count:"exact",head:true});if(f)q=f(q);const {count}=await q;return count??0};
+  const [m,mp,ma,ml,vd,vp,u,pr]=await Promise.all([
+    c("models"),c("models",q=>q.eq("status","pending")),c("models",q=>q.eq("status","approved")),c("models",q=>q.eq("is_live",true)),
+    c("videos"),c("videos",q=>q.eq("is_published",true)),c("profiles"),c("promotions",q=>q.eq("active",true))]);
+  const S=(n,l)=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`;
+  v.innerHTML=`<h2>Resumo</h2><div class="cards">${S(m,"Modelos")}${S(mp,"A aguardar aprovação")}${S(ma,"Aprovadas")}${S(ml,"Em direto")}${S(vd,"Vídeos")}${S(vp,"Vídeos publicados")}${S(u,"Utilizadores")}${S(pr,"Promoções ativas")}</div>`;
+}
+
+async function modelos(v){
+  const {data,error}=await sb.from("models").select("*").order("created_at",{ascending:false});
+  if(error)return v.innerHTML=err(error);
+  v.innerHTML=`<h2>Modelos</h2>`+(data.length?data.map(m=>`
+    <div class="row"><b>${esc(m.stage_name)}</b>
+      <small>/${esc(m.slug)} · ${esc(m.country)} · nasc. ${esc(m.birth_date)} · ${m.price_per_minute} créditos/min</small>
+      <div class="tags">
+        <span class="tag ${m.status==="approved"?"ok":""}">${esc(m.status)}</span>
+        <span class="tag ${m.kyc_status==="verified"?"ok":""}">identidade: ${esc(m.kyc_status)}</span>
+        ${m.is_live?`<span class="tag live">em direto</span>`:""}
+      </div>
+      <div class="acts">
+        <button class="btn" data-a="model" data-id="${m.id}" data-s="approved" data-k="verified" data-l="${m.is_live}" data-p="${m.price_per_minute}">Aprovar</button>
+        <button class="btn line" data-a="model" data-id="${m.id}" data-s="${m.status}" data-k="${m.kyc_status}" data-l="${!m.is_live}" data-p="${m.price_per_minute}">${m.is_live?"Terminar direto":"Pôr em direto"}</button>
+        <button class="btn line" data-a="price" data-id="${m.id}" data-s="${m.status}" data-k="${m.kyc_status}" data-l="${m.is_live}" data-p="${m.price_per_minute}">Mudar preço</button>
+        <button class="btn bad" data-a="model" data-id="${m.id}" data-s="rejected" data-k="failed" data-l="false" data-p="${m.price_per_minute}">Rejeitar</button>
+        <button class="btn bad" data-a="deluser" data-id="${m.id}" data-n="${esc(m.stage_name)}">Apagar</button>
+      </div></div>`).join(""):`<p class="empty">Ainda não há modelos registadas.</p>`);
+}
+
+async function videos(v){
+  const {data,error}=await sb.from("videos").select("*, models(stage_name)").order("created_at",{ascending:false});
+  if(error)return v.innerHTML=err(error);
+  v.innerHTML=`<h2>Vídeos</h2>`+(data.length?data.map(x=>`
+    <div class="row"><b>${esc(x.title)}</b><small>${esc(x.models?.stage_name||"")}</small>
+      <div class="tags"><span class="tag ${x.is_published?"ok":""}">${x.is_published?"publicado":"oculto"}</span></div>
+      <div class="acts">
+        <button class="btn" data-a="vpub" data-id="${x.id}" data-v="${!x.is_published}">${x.is_published?"Ocultar":"Publicar"}</button>
+        <button class="btn bad" data-a="vdel" data-id="${x.id}">Apagar</button>
+      </div></div>`).join(""):`<p class="empty">Ainda não há vídeos. Aparecem aqui quando as modelos fizerem upload.</p>`);
+}
+
+async function promos(v){
+  const {data,error}=await sb.from("promotions").select("*").order("created_at",{ascending:false});
+  if(error)return v.innerHTML=err(error);
+  v.innerHTML=`<h2>Promoções</h2>
+  <form class="form" id="pf">
+    <label for="pt">Título</label><input id="pt" required maxlength="80" placeholder="Ex.: Créditos com bónus este fim de semana">
+    <label for="pb">Texto (opcional)</label><textarea id="pb" rows="2" maxlength="200"></textarea>
+    <label for="pl">Link (opcional)</label><input id="pl" type="url" placeholder="https://…">
+    <label for="pe">Termina em (opcional)</label><input id="pe" type="datetime-local">
+    <p class="err" id="pe-err"></p>
+    <button class="btn" style="margin-top:14px" type="submit">Publicar promoção</button>
+  </form>`+(data.length?data.map(p=>`
+    <div class="row"><b>${esc(p.title)}</b><small>${esc(p.body||"")}</small>
+      <div class="tags"><span class="tag ${p.active?"ok":""}">${p.active?"ativa":"desativada"}</span>${p.ends_at?`<span class="tag">até ${new Date(p.ends_at).toLocaleString("pt-PT")}</span>`:""}</div>
+      <div class="acts">
+        <button class="btn line" data-a="pact" data-id="${p.id}" data-v="${!p.active}">${p.active?"Desativar":"Ativar"}</button>
+        <button class="btn bad" data-a="pdel" data-id="${p.id}">Apagar</button>
+      </div></div>`).join(""):`<p class="empty">Sem promoções.</p>`);
+}
+
+async function users(v){
+  const [{data,error},{data:w}]=await Promise.all([
+    sb.from("profiles").select("*").order("created_at",{ascending:false}),sb.from("wallets").select("*")]);
+  if(error)return v.innerHTML=err(error);
+  const cr=Object.fromEntries((w||[]).map(x=>[x.user_id,x.credits]));
+  v.innerHTML=`<h2>Utilizadores</h2>`+data.map(u=>`
+    <div class="row"><b>${esc(u.display_name||u.email||"Sem nome")}</b><small>${esc(u.email||"")}</small>
+      <div class="tags"><span class="tag ${u.role==="admin"?"ok":""}">${esc(u.role)}</span><span class="tag">${cr[u.id]??0} créditos</span></div>
+      <div class="acts">
+        <button class="btn line" data-a="credits" data-id="${u.id}">Dar créditos</button>
+        ${u.role==="admin"?"":`<button class="btn bad" data-a="deluser" data-id="${u.id}" data-n="${esc(u.email||u.display_name)}">Apagar</button>`}
+      </div></div>`).join("");
+}
+
+document.addEventListener("click",async e=>{
+  const t=e.target.closest(".tab");
+  if(t){tab=t.dataset.t;return render()}
+  const b=e.target.closest("button[data-a]");if(!b)return;
+  const d=b.dataset;b.disabled=true;
+  if(d.a==="model")return rpc("admin_update_model",{p_id:d.id,p_status:d.s,p_kyc:d.k,p_live:d.l==="true",p_price:+d.p});
+  if(d.a==="price"){const n=parseInt(prompt("Novo preço (créditos por minuto):",d.p),10);b.disabled=false;
+    if(!n||n<1)return;return rpc("admin_update_model",{p_id:d.id,p_status:d.s,p_kyc:d.k,p_live:d.l==="true",p_price:n})}
+  if(d.a==="deluser"){b.disabled=false;if(!confirm(`Apagar "${d.n}" e todos os seus dados? Não dá para desfazer.`))return;
+    return rpc("admin_delete_user",{p_id:d.id})}
+  if(d.a==="credits"){const n=parseInt(prompt("Quantos créditos dar? (negativo para retirar)","100"),10);b.disabled=false;
+    if(!n)return;return rpc("admin_add_credits",{p_user:d.id,p_amount:n})}
+  let r;
+  if(d.a==="vpub")r=await sb.from("videos").update({is_published:d.v==="true"}).eq("id",d.id);
+  if(d.a==="vdel"){if(!confirm("Apagar este vídeo?")){b.disabled=false;return}r=await sb.from("videos").delete().eq("id",d.id)}
+  if(d.a==="pact")r=await sb.from("promotions").update({active:d.v==="true"}).eq("id",d.id);
+  if(d.a==="pdel"){if(!confirm("Apagar esta promoção?")){b.disabled=false;return}r=await sb.from("promotions").delete().eq("id",d.id)}
+  if(r?.error)alert(r.error.message);
+  render();
+});
+document.addEventListener("submit",async e=>{
+  if(e.target.id!=="pf")return;e.preventDefault();
+  const end=$("#pe").value;
+  const {error}=await sb.from("promotions").insert({title:$("#pt").value.trim(),body:$("#pb").value.trim()||null,
+    link_url:$("#pl").value.trim()||null,ends_at:end?new Date(end).toISOString():null});
+  if(error)return $("#pe-err").textContent=error.message;
+  render();
+});
+$("#lf").addEventListener("submit",async e=>{
+  e.preventDefault();$("#le").textContent="";
+  const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+  if(error){const m=(error.message||"").toLowerCase();
+    $("#le").textContent=m.includes("not confirmed")?"O email ainda não foi confirmado no Supabase."
+      :m.includes("invalid login")?"Email ou palavra-passe incorretos.":"Erro: "+error.message;return}
+  const r=await adminCheck();
+  if(!r.ok){await sb.auth.signOut();
+    $("#le").textContent=r.error?"Sem permissão para ler o perfil: "+r.error.message:"Esta conta ainda não tem o papel de administrador na base de dados.";return}
+  show();
+});
+$("#out").onclick=async()=>{await sb.auth.signOut();show()};
+show();
+</script>
+</body>
+</html>
