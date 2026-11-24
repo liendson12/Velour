@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Velour · Administração</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--wine:#2a0f1e;--wine-2:#3a1829;--champagne:#e9d5b8;--ivory:#faf3ea;--rose:#c98b7b;--muted:#b9a3a8;--line:rgba(233,213,184,.16)}
+*{box-sizing:border-box;margin:0}
+body{background:var(--wine);color:var(--ivory);font:400 16px/1.5 Manrope,system-ui,sans-serif;min-height:100vh}
+.wrap{max-width:900px;margin:0 auto;padding:24px 18px 60px}
+h1{font:600 34px/1.1 "Cormorant Garamond",serif;color:var(--champagne)}
+h2{font:500 28px/1.1 "Cormorant Garamond",serif;margin:30px 0 12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+input{width:100%;padding:13px 14px;border-radius:8px;border:1px solid var(--line);background:var(--wine);color:var(--ivory);font-size:16px}
+label{display:block;font-size:13.5px;font-weight:600;margin:14px 0 6px}
+.btn{border:0;cursor:pointer;padding:11px 18px;border-radius:99px;font:600 14px Manrope;background:var(--champagne);color:var(--wine)}
+.btn.line{background:none;color:var(--champagne);border:1px solid var(--line)}
+.btn.bad{background:none;color:#ff9aa6;border:1px solid rgba(255,154,166,.4)}
+.panel{background:var(--wine-2);border:1px solid var(--line);border-radius:20px;padding:26px;max-width:420px;margin:60px auto}
+.panel .btn{width:100%;margin-top:20px;padding:14px}
+.err{color:#ff9aa6;font-size:14px;margin-top:12px}
+.row{background:var(--wine-2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.row b{font:600 22px "Cormorant Garamond",serif}
+.row small{color:var(--muted);display:block}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.tag{font-size:12.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.tag.ok{color:#9be7b4;border-color:rgba(155,231,180,.4)}
+.tag.live{color:#ff8a98;border-color:rgba(255,138,152,.4)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="panel">
+    <h1>Administração</h1>
+    <form id="lf">
+      <label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Palavra-passe</label><input id="pw" type="password" autocomplete="current-password" required>
+      <p class="err" id="le" role="alert"></p>
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <div id="dash" class="hidden">
+    <div class="top"><h1>Modelos</h1><button class="btn line" id="out">Sair</button></div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+const sb=createClient("https://skzubutjewdtkpjamqtd.supabase.co",
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrenVidXRqZXdkdGtwamFtcXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MTIyMTgsImV4cCI6MjExMTA4ODIxOH0.kWVH8Uh2WPqtHu394VWAiTuEBk7wRjaTSz8Eu91UlEg");
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function isAdmin(){
+  const {data:{user}}=await sb.auth.getUser(); if(!user)return false;
+  const {data}=await sb.from("profiles").select("role").eq("id",user.id).maybeSingle();
+  return data?.role==="admin";
+}
+async function show(){
+  if(await isAdmin()){$("#login").classList.add("hidden");$("#dash").classList.remove("hidden");load()}
+  else{$("#dash").classList.add("hidden");$("#login").classList.remove("hidden")}
+}
+async function load(){
+  const {data,error}=await sb.from("models").select("*").order("created_at",{ascending:false});
+  if(error){$("#list").innerHTML=`<p class="err">${esc(error.message)}</p>`;return}
+  $("#list").innerHTML=data.length?data.map(m=>`
+    <div class="row">
+      <b>${esc(m.stage_name)}</b><small>/${esc(m.slug)} · ${esc(m.country)} · nasc. ${esc(m.birth_date)}</small>
+      <div class="tags">
+        <span class="tag ${m.status==="approved"?"ok":""}">${esc(m.status)}</span>
+        <span class="tag ${m.kyc_status==="verified"?"ok":""}">identidade: ${esc(m.kyc_status)}</span>
+        ${m.is_live?`<span class="tag live">em direto</span>`:""}
+      </div>
+      <div class="acts">
+        <button class="btn" data-id="${m.id}" data-s="approved" data-k="verified" data-l="${m.is_live}">Aprovar</button>
+        <button class="btn line" data-id="${m.id}" data-s="${m.status}" data-k="${m.kyc_status}" data-l="${!m.is_live}">${m.is_live?"Terminar direto":"Pôr em direto"}</button>
+        <button class="btn bad" data-id="${m.id}" data-s="rejected" data-k="failed" data-l="false">Rejeitar</button>
+      </div>
+    </div>`).join(""):`<p style="color:var(--muted);margin-top:20px">Ainda não há modelos registadas.</p>`;
+}
+$("#list").addEventListener("click",async e=>{
+  const b=e.target.closest("button[data-id]"); if(!b)return;
+  b.disabled=true;
+  const {error}=await sb.rpc("admin_set_model",{p_id:b.dataset.id,p_status:b.dataset.s,p_kyc:b.dataset.k,p_live:b.dataset.l==="true"});
+  if(error)alert(error.message);
+  load();
+});
+$("#lf").addEventListener("submit",async e=>{
+  e.preventDefault();$("#le").textContent="";
+  const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+  if(error){$("#le").textContent="Email ou palavra-passe incorretos.";return}
+  if(!(await isAdmin())){await sb.auth.signOut();$("#le").textContent="Esta conta não é de administrador.";return}
+  show();
+});
+$("#out").onclick=async()=>{await sb.auth.signOut();show()};
+show();
+</script>
+</body>
+</html>
